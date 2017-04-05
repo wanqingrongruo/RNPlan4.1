@@ -269,3 +269,89 @@ let end = List.end
 let list1 = List.node(1, next: end)
 let list2 = List.node(2, next: end)
 
+//: ## 如何为值类型实现 Copy-On-Write?
+
+// 虽然Array是一个struct，但numbers1中的数字并不保存在numbers1对象里，它们会另外存储在系统堆内存中。numbers1对象里，只会保存指向堆内存的一个引用
+
+var cowarray = [1, 2, 3, 4, 5]
+MemoryLayout.size(ofValue: cowarray)
+var cow02 = cowarray
+cow02[0] = 111
+cow02
+cowarray // 未发生改变
+
+//struct MyArray {
+//    var data: NSMutableArray
+//    
+//    init(data: NSMutableArray) {
+//        self.data = data.mutableCopy() as! NSMutableArray
+//    }
+//    
+//    var dataCOW: NSMutableArray {
+//        mutating get {
+//            data = data.mutableCopy() as! NSMutableArray
+//            return data
+//        }
+//    }
+//}
+//
+//extension MyArray {
+//    mutating func append(element: Any) {
+//        
+//        dataCOW.insert(element, at: self.data.count)
+//        
+//    }
+//}
+//
+//var m = MyArray(data: [1, 2, 3])
+//let n = m
+//
+//m.append(element: 11)
+//
+//m.data === n.data
+
+class demo1{}
+
+// 为了判断对象是否只有一个引用，我们可以调用Swift标准库中的isKnownUniquelyReferenced方法，它的用法是这样的：
+
+// 首先，对于Swift原生类对象，只有单一引用时返回true，否则返回false：
+var nativeClassObj1 = demo1()
+isKnownUniquelyReferenced(&nativeClassObj1)
+
+var nativeClassObj2 = nativeClassObj1
+isKnownUniquelyReferenced(&nativeClassObj1)
+
+// 其次，对于Objective-C中的类对象，总是返回false:
+var  arrayObj: NSArray = [1, 2, 3]
+isKnownUniquelyReferenced(&arrayObj)
+
+final class BOX<T> {
+    var unbox: T
+    
+    init(_ unbox: T){
+        self.unbox = unbox
+    }
+}
+
+var boxed = BOX(arrayObj)
+isKnownUniquelyReferenced(&boxed)
+
+struct MyArray {
+    var data: BOX<NSMutableArray>
+    
+    init(data: NSMutableArray) {
+        self.data = BOX(data.mutableCopy() as! NSMutableArray)
+    }
+    
+    var dataCow: NSMutableArray {
+        mutating get {
+            
+            if !isKnownUniquelyReferenced(&data) {
+                data = BOX(data.unbox.mutableCopy() as! NSMutableArray)
+            }
+            
+            return data.unbox
+        }
+    }
+}
+
