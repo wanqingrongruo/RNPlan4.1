@@ -48,3 +48,31 @@ p2.x
 
 
 //: 3. 引用类型默认是可以修改的
+
+extension PointRef {
+    // 由于引用类型关注的是其引用的对象，而不是对象的值。因此，它的方法默认是可以修改对象属性的
+    // 不需要使用 mutatiing
+    func move(to: PointRef){
+        
+        self.x = to.x
+        self.y = to.y
+        
+        // 在class的方法里，self 自身是一个常量，我们不能直接让它引用其它的对象
+        // self = to // !! Compile time error !!
+    }
+}
+
+extension PointValue {
+    
+    // 需要使用 mutatiing
+    mutating func move(to: PointRef){
+        
+        self.x = to.x
+        self.y = to.y
+        
+        // 直接给 self 赋值也是可以的
+        // 编译器知道对一个值类型赋值就是简单的内存拷贝
+        // self = to
+    }
+
+}
