@@ -76,3 +76,23 @@ extension PointValue {
     }
 
 }
+
+//: ## 理解 class 类型的各种 init 方法
+
+class Point2D {
+    var x: Double
+    var y: Double 
+    
+    // 定义默认的 init
+    
+    // 1. 方法一, 给每个属性添加默认值
+    // 2. 方法二, memberwise init方法
+    init(x: Double = 0, y: Double = 0) {
+        self.x = x
+        self.y = y
+    }
+    
+}
+
+let origin = Point2D()
+let point11 = Point2D(x: 11, y: 11)
