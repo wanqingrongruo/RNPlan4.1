@@ -85,6 +85,7 @@ class Point2D {
     
     // 定义默认的 init
     
+    // designated init
     // 1. 方法一, 给每个属性添加默认值
     // 2. 方法二, memberwise init方法
     init(x: Double = 0, y: Double = 0) {
@@ -92,7 +93,148 @@ class Point2D {
         self.y = y
     }
     
+//    init?(at: (String, String)) {
+//        
+//        guard let x =  Double(at.0), let y =  Double(at.1) else {
+//            return nil
+//        }
+//        self.x = x
+//        self.y = y
+//    }
+    
+    // convenience init
+    convenience init(at: (Double, Double)) { // 必须调用 designated init
+        self.init(x: at.0, y: at.1)
+    }
+    
+    
+    // failable init
+    convenience init?(at: (String, String)) { // 必须调用 designated init
+        guard let x = Double(at.0), let y = Double(at.1) else {
+            return nil
+        }
+        
+        // 这里，我们只要保证最终可以调用到designated init方法就好了，而不一定要在convenience init方法中，直接调用deignated init方法
+        self.init(at: (x, y))
+    }
+    
+    // 一个failable designated init方法不能被non failable convenience init调用
+
 }
 
 let origin = Point2D()
 let point11 = Point2D(x: 11, y: 11)
+
+
+//: ## about inherit - two-phase initialization
+
+class Point3D: Point2D {
+    
+    var z: Double = 0
+    
+    // 1. 如果派生类没有定义任何designated initializer，那么它将自动继承继承所有基类的designated initializer
+    // 2. 如果一个派生类定义了所有基类的designated init，那么它也将自动继承基类所有的convenience init。
+   // --- 只要派生类拥有基类所有的designated init方法，他就会自动获得所有基类的convenience init方法
+    
+    // 在派生类中自定义designated init，表示我们要明确控制派生类对象的构建过程
+    init(x: Double = 0, y: Double = 0, z: Double = 0) {
+        self.z = z
+        super.init(x: x, y: y)
+        
+         self.initXYZ(x: x, y: y, z: z)
+       
+    }
+    
+    override init(x: Double, y: Double) {
+        self.z = 0
+        super.init(x: x, y: y)
+    }
+    
+    // 在派生类中，重载基类的convenience init方法，是不需要override关键字的，
+    convenience init(at: (Double, Double)) {
+        self.init(x: at.0, y: at.1, z: 0)
+    }
+    
+    // // 什么是two-phase initialization
+    // 阶段一：从派生类到基类，自下而上让类的每一个属性都有初始值
+    // 阶段二：所有属性都有初始值之后，从基类到派生类，自上而下对类的每个属性进行进一步加工
+   
+    func initXYZ(x: Double, y: Double, z: Double) {
+        self.x = round(x)
+        self.y = round(y)
+        self.z = round(z)
+    }
+}
+
+
+//let point3 = Point3D(at: (3, 3))
+//let point4 = Point3D(at: ("4", "4"))
+
+
+// 定义在extension中的方法，是不能被重定义的
+
+
+//: ## ARC 是 如何工作的?
+
+class Apartment {
+    
+    let unit: String
+    weak var tenant: Person?
+    
+    init(unit: String) {
+        self.unit = unit
+        
+        print("\(self.unit) is being initialized")
+    }
+    
+    deinit {
+        print("\(unit) is being deinitialized")
+    }
+}
+
+class Person {
+    
+    let name: String
+    
+    var apartment: Apartment?
+    
+    init(name: String) {
+        self.name = name
+        
+        print("\(self.name) is being initialized")
+    }
+    
+    deinit {
+        print("\(name) is being deinitialized")
+    }
+}
+
+//// 说明: ref1 变量不是类的对象本身,而是一个对象的引用, 通过它可以找到对象
+//var ref1: Person? = Person(name: "roni") //  count == 1
+//var ref2: Person? = ref1 // count == 2
+//ref1 = nil // count == 1
+//ref2 = nil // count == 0 对象被回收
+
+var roni: Person? = Person(name: "roni") // person -> count == 1
+var unit11: Apartment? = Apartment(unit: "11") // apartment -> count == 1
+
+//roni?.apartment = unit11  // apartment -> count == 2
+//unit11?.tenant = roni // person -> count == 2
+//
+//roni = nil  // person -> count == 1   -> 无法解决了
+//unit11 = nil // apartment -> count == 1  -> 无法解决了
+
+//: ## 使用 unowned 和 weak 处理 reference cycle
+
+// 判断标准: 根据属性是否可以为nil，我们要采取不同的方式
+
+// 一方属性可以为nil时，使用weak
+
+roni?.apartment = unit11  // strong reference
+unit11?.tenant = roni // weak refrence
+
+roni = nil  // person -> count == 1   -> 无法解决了
+unit11?.tenant
+unit11 = nil
+
+// 一方属性不可以为nil时，使用unowned
